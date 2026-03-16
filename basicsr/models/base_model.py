@@ -16,10 +16,17 @@ class BaseModel():
 
     def __init__(self, opt):
         self.opt = opt
-        self.device = torch.device('cuda' if opt['num_gpu'] != 0 else 'cpu')
+
+        if torch.cuda.is_available():
+            self.device = torch.device('cuda:0')
+        else:
+            self.device = torch.device('cpu')
+
         self.is_train = opt['is_train']
         self.schedulers = []
         self.optimizers = []
+
+
 
     def feed_data(self, data):
         pass
@@ -298,7 +305,8 @@ class BaseModel():
             if param_key not in load_net and 'params' in load_net:
                 param_key = 'params'
                 logger.info('Loading: params_ema does not exist, use params.')
-            load_net = load_net[param_key]
+            if param_key is not None and param_key in load_net:
+                load_net = load_net[param_key]
         print(' load net keys', load_net.keys)
         # remove unnecessary 'module.'
         for k, v in deepcopy(load_net).items():

@@ -1,107 +1,150 @@
-## Learning Enriched Features for Fast Image Restoration and Enhancement
-## Syed Waqas Zamir, Aditya Arora, Salman Khan, Munawar Hayat, Fahad Shahbaz Khan, Ming-Hsuan Yang, and Ling Shao
-## IEEE Transactions on Pattern Analysis and Machine Intelligence (TPAMI)
-## https://www.waqaszamir.com/publication/zamir-2022-mirnetv2/
-
 import numpy as np
 import os
 import argparse
 from tqdm import tqdm
-
-import torch.nn as nn
 import torch
-import torch.nn.functional as F
-import utils
-
+import torch.nn as nn
 from natsort import natsorted
 from glob import glob
 from basicsr.models.archs.UHDM_arch import UHDM
 from skimage import img_as_ubyte
-
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
-
-parser = argparse.ArgumentParser(description='Image Enhancement using MIRNet-v2')
-
-parser.add_argument('--input_dir', default='/amax/wcx/NTIRE24_LL/test/input', type=str, help='Directory of validation images')
-parser.add_argument('--result_dir', default='./results/', type=str, help='Directory for results')
-parser.add_argument('--weights', default='pretrained_models/net_g_150000.pth', type=str, help='Path to weights')
-parser.add_argument('--dataset', default='NtireLL', type=str, help='Test Dataset')
-
-args = parser.parse_args()
-
-
-####### Load yaml #######
-yaml_file = 'Options/Ntire24UHDLowLight.yml'
-weights = args.weights
-
+from PIL import Image
 import yaml
 
-try:
-    from yaml import CLoader as Loader
-except ImportError:
-    from yaml import Loader
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 
-x = yaml.load(open(yaml_file, mode='r'), Loader=Loader)
+parser = argparse.ArgumentParser()
+parser.add_argument('--input_dir', type=str, required=True)
+parser.add_argument('--result_dir', type=str, required=True)
+parser.add_argument('--weights', type=str, required=True)
+args = parser.parse_args()
 
-s = x['network_g'].pop('type')
-##########################
+# -------- LOAD YAML --------
+yaml_file = 'Options/Ntire24UHDLowLight.yml'
 
-model_restoration = UHDM(**x['network_g'])
+with open(yaml_file, 'r') as f:
+    opt = yaml.safe_load(f)
 
-checkpoint = torch.load(weights)
-model_restoration.load_state_dict(checkpoint['params'])
-print("===>Testing using weights: ",weights)
-model_restoration.cuda()
-model_restoration = nn.DataParallel(model_restoration)
-model_restoration.eval()
+opt['network_g'].pop('type', None)
+opt['network_g'].pop('path', None)
+
+model = UHDM(**opt['network_g'])
+
+# -------- LOAD CHECKPOINT --------
+checkpoint = torch.load(args.weights, map_location='cpu')
+
+if 'params' in checkpoint:
+    model.load_state_dict(checkpoint['params'])
+elif 'state_dict' in checkpoint:
+    model.load_state_dict(checkpoint['state_dict'])
+else:
+    model.load_state_dict(checkpoint)
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+model = model.to(device)
+
+if torch.cuda.device_count() > 1:
+    model = nn.DataParallel(model)
+
+model.eval()
+
+# --------------------------------
+# X8 SELF ENSEMBLE FUNCTION
+# --------------------------------
+
+def transform(v, op):
+    if op == 'v':
+        v = torch.flip(v, [2])
+    elif op == 'h':
+        v = torch.flip(v, [3])
+    elif op == 't':
+        v = v.transpose(2, 3)
+    return v
 
 
-factor = 4
-dataset = args.dataset
-result_dir  = os.path.join(args.result_dir, dataset)
-os.makedirs(result_dir, exist_ok=True)
+def forward_x8(model, x):
 
-# input_dir = os.path.join(args.input_dir, 'input')
-# input_paths = natsorted(glob(os.path.join(input_dir, '*.png')) + glob(os.path.join(input_dir, '*.jpg')))
-#
-# target_dir = os.path.join(args.input_dir, 'gt')
-# target_paths = natsorted(glob(os.path.join(target_dir, '*.png')) + glob(os.path.join(target_dir, '*.jpg')))
+    lr_list = [x]
 
-# for unpaired data
-input_paths = natsorted(glob(os.path.join(args.input_dir, '*.png')) + glob(os.path.join(args.input_dir, '*.JPG')))
-target_paths = natsorted(glob(os.path.join(args.input_dir, '*.png')) + glob(os.path.join(args.input_dir, '*.JPG')))
+    for tf in ['v', 'h', 't']:
+        lr_list.extend([transform(t, tf) for t in lr_list])
+
+    sr_list = []
+
+    for aug in lr_list:
+
+        out = model(aug)
+
+        if isinstance(out, (list, tuple)):
+            out = out[0]
+
+        if isinstance(out, dict):
+            out = out['out'] if 'out' in out else list(out.values())[0]
+
+        sr_list.append(out)
+
+    for i in range(len(sr_list)):
+
+        if i > 3:
+            sr_list[i] = transform(sr_list[i], 't')
+
+        if i % 4 > 1:
+            sr_list[i] = transform(sr_list[i], 'h')
+
+        if (i % 4) % 2 == 1:
+            sr_list[i] = transform(sr_list[i], 'v')
+
+    output = torch.stack(sr_list, dim=0).mean(dim=0)
+
+    return output
 
 
-psnr = []
+# -------- LOAD INPUT IMAGES --------
+
+input_paths = natsorted(
+    glob(os.path.join(args.input_dir, '*.jpg')) +
+    glob(os.path.join(args.input_dir, '*.png'))
+)
+
+os.makedirs(args.result_dir, exist_ok=True)
+
+# -------- INFERENCE --------
+
 with torch.inference_mode():
-    for inp_path, tar_path in tqdm(zip(input_paths,target_paths), total=len(target_paths)):
-        torch.cuda.ipc_collect()
-        torch.cuda.empty_cache()
 
-        img = np.float32(utils.load_img(inp_path))/255.
-        target = np.float32(utils.load_img(tar_path))/255.
+    for inp_path in tqdm(input_paths):
 
-        img = torch.from_numpy(img).permute(2,0,1)
-        input_ = img.unsqueeze(0).cuda()
+        # LOAD ORIGINAL IMAGE
+        orig_pil = Image.open(inp_path).convert("RGB")
+        orig_w, orig_h = orig_pil.size
 
-        # Padding in case images are not multiples of 4
-        h,w = input_.shape[2], input_.shape[3]
-        H,W = ((h+factor)//factor)*factor, ((w+factor)//factor)*factor
-        padh = H-h if h%factor!=0 else 0
-        padw = W-w if w%factor!=0 else 0
-        input_ = F.pad(input_, (0,padw,0,padh), 'reflect')
-        print(inp_path)
-        restored = model_restoration(input_)
+        img = np.float32(np.array(orig_pil)) / 255.
 
-        # Unpad images to original dimensions
-        restored = restored[0][:,:,:h,:w]
+        img_tensor = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0).to(device)
 
-        restored = torch.clamp(restored,0,1).cpu().detach().permute(0, 2, 3, 1).squeeze(0).numpy()
+        # -------- MODEL WITH X8 ENSEMBLE --------
 
-        psnr.append(utils.PSNR(target, restored))
+        restored = forward_x8(model, img_tensor)
 
-        utils.save_img((os.path.join(result_dir, os.path.splitext(os.path.split(inp_path)[-1])[0]+'.png')), img_as_ubyte(restored))
+        if isinstance(restored, dict):
+            restored = restored['out'] if 'out' in restored else list(restored.values())[0]
 
-psnr = np.mean(np.array(psnr))
-print("PSNR: %.2f " %(psnr))
+        if isinstance(restored, (list, tuple)):
+            restored = restored[0]
 
+        restored = restored.squeeze(0)
+        restored = torch.clamp(restored, 0, 1).cpu().permute(1, 2, 0).numpy()
+
+        restored_uint8 = img_as_ubyte(restored)
+
+        # -------- FORCE FINAL RESIZE --------
+
+        restored_pil = Image.fromarray(restored_uint8)
+        restored_pil = restored_pil.resize((orig_w, orig_h), Image.BICUBIC)
+
+        filename = os.path.splitext(os.path.basename(inp_path))[0] + ".png"
+        save_path = os.path.join(args.result_dir, filename)
+
+        restored_pil.save(save_path)
+
+print("Inference completed successfully.")

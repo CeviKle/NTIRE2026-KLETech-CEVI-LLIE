@@ -86,10 +86,12 @@ class Dataset_PairedImage(data.Dataset):
         # image range: [0, 1], float32.
         gt_path = self.paths[index]['gt_path']
         img_bytes = self.file_client.get(gt_path, 'gt')
+ 
         try:
             img_gt = imfrombytes(img_bytes, float32=True)
         except:
-            raise Exception("gt path {} not working".format(gt_path))
+            print("Skipping file:", gt_path)
+            return self.__getitem__(0)
 
         lq_path = self.paths[index]['lq_path']
         img_bytes = self.file_client.get(lq_path, 'lq')
