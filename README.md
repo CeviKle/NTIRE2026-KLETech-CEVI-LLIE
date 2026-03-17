@@ -1,4 +1,4 @@
-# NTIRE 2026 – Low-Light Image Enhancement Challenge
+[# NTIRE 2026 – Low-Light Image Enhancement Challenge
 
 ### Team: KLETech-CEVI
 
@@ -126,7 +126,7 @@ https://drive.google.com/drive/folders/1HhO0yl2K4tHHgzxGv9mZRMYjqMzlGQ70?usp=sha
 
 The folder contains:
 
-* Final averaged model weights
+* Final model weights
 * Inference results used for NTIRE submission
 * Additional datasets used for testing
 
@@ -148,24 +148,6 @@ python test.py --input_dir [path_to_official_input]
 ```
 
 Enhanced images will be saved in the `results` directory.
-
----
-
-# Checkpoint Averaging
-
-To average multiple trained checkpoints:
-
-```
-python average_models.py
-```
-
-This generates:
-
-```
-averaged_model.pth
-```
-
-which can be used for final inference.
 
 ---
 
@@ -216,3 +198,4 @@ KLE Technological University
 
 For questions regarding this repository or the NTIRE 2026 submission, please contact the team members.
 
+](https://github.com/CeviKle/NTIRE2026-KLETech-CEVI-LLIE/blob/main/README.md?plain=1)
