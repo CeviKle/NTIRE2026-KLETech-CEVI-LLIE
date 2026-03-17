@@ -1,113 +1,107 @@
-[# NTIRE 2026 – Low-Light Image Enhancement Challenge]
+# NTIRE 2026 – Low-Light Image Enhancement Challenge
 
-### Team: KLETech-CEVI
+## Team: KLETech-CEVI
 
-This repository contains the implementation of our solution for the **NTIRE 2026 Low-Light Image Enhancement Challenge**.
+This repository presents our solution for the **NTIRE 2026 Low-Light Image Enhancement Challenge**.
 
-Our method is based on the **UHDM architecture implemented using the BasicSR framework**.
-The repository includes training code, inference scripts, and instructions to reproduce the results submitted to Codabench.
+Our approach is based on the **UHDM (Universal Hierarchical Decomposition Model)**, implemented using the **BasicSR framework**. The repository provides complete resources including training pipeline, inference scripts, pretrained models, and reproducibility instructions corresponding to our Codabench submission.
 
 ---
 
-# Repository Structure
+## 1. Overview
+
+Low-light image enhancement is a critical task in computer vision, aiming to improve visibility and perceptual quality under challenging illumination conditions.
+
+Our proposed method leverages a hierarchical decomposition strategy to effectively enhance low-light images while preserving structural details and minimizing artifacts.
+
+---
+
+## 2. Repository Structure
 
 ```
-KLETech-CEVI_LowLightEnhancement
+NTIRE2026-KLETech-CEVI-LLIE
 │
-├── Enhancement/                # Inference scripts and evaluation pipeline
-│
-├── basicsr/                    # BasicSR framework implementation
-│
-├── basicsr.egg-info/           # BasicSR build information
-│
-├── checkpoint/                 # Training checkpoints and models
-│
-├── setup.py                    # Install BasicSR package
-│
-├── test_1.py                   # Testing / inference script
-│
+├── Enhancement/                # Inference and evaluation pipeline
+├── basicsr/                    # BasicSR framework
+├── basicsr.egg-info/           # Build metadata
+├── checkpoint/                 # Model checkpoints
+├── setup.py                    # Installation script
+├── test_1.py                   # Testing script
 ├── LICENSE                     # License file
-│
-├── VERSION                     # Version information
-│
-└── README.md                   # Project documentation
+├── VERSION                     # Version info
+└── README.md                   # Documentation
 ```
 
 ---
 
-# Clone Repository
+## 3. Installation
 
+### 3.1 Clone Repository
+
+```bash
+git clone https://github.com/CeviKle/NTIRE2026-KLETech-CEVI-LLIE.git
+cd NTIRE2026-KLETech-CEVI-LLIE
 ```
-git clone https://github.com/CeviKle/KLETech-CEVI_LowLightEnhancement.git
-cd KLETech-CEVI_LowLightEnhancement
-```
 
----
+### 3.2 Environment Setup
 
-# Environment Setup
-
-Create a conda environment.
-
-```
+```bash
 conda create -n sysuenv python=3.8
 conda activate sysuenv
 ```
 
----
+### 3.3 Install Dependencies
 
-# Install Dependencies
-
-Install PyTorch.
-
-```
+**PyTorch (CUDA 11.1):**
+```bash
 pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu111
 ```
 
-Install required libraries.
-
-```
+**Required Libraries:**
+```bash
 pip install matplotlib scikit-learn scikit-image opencv-python yacs joblib natsort h5py tqdm
 pip install einops gdown addict future lmdb numpy pyyaml requests scipy tb-nightly yapf lpips
 ```
 
----
+### 3.4 Install BasicSR
 
-# Install BasicSR
-
-```
+```bash
 python setup.py develop --no_cuda_ext
 ```
 
 ---
 
-# Training
+## 4. Dataset
 
-Set the dataset root directory in:
+The model is trained on the **official NTIRE 2026 Low-Light Image Enhancement dataset**.
 
-```
+Update dataset paths in:
+```bash
 Options/Ntire24UHDLowLight.yml
 ```
 
-Then run training:
+---
 
-```
+## 5. Training
+
+```bash
 python basicsr/train.py
 ```
 
 ---
 
-# Testing / Inference
+## 6. Inference
 
-For testing your own images:
+### 6.1 General Inference
 
-```
+```bash
 cd Enhancement
-python test.py --weights [model_weights] --input_dir [input_images] --result_dir [output_folder] --dataset [dataset_name]
+python test.py --weights [model_weights] --input_dir [input_images] --result_dir [output_folder]
 ```
 
-Example:
+### 6.2 Example
 
-```
+```bash
 python test.py \
 --weights pretrained_models/averaged_model.pth \
 --input_dir ./input \
@@ -116,86 +110,91 @@ python test.py \
 
 ---
 
-# Pretrained Model
+## 7. Pretrained Models and Results
 
-The final trained model weights are available here:
-
-**Google Drive (Weights + Results)**
+Download pretrained weights and results from:
 
 https://drive.google.com/drive/folders/1HhO0yl2K4tHHgzxGv9mZRMYjqMzlGQ70?usp=sharing
 
-The folder contains:
+### Contents:
+- Final trained model weights  
+- Results submitted to Codabench  
+- Additional evaluation outputs  
 
-* Final model weights
-* Inference results used for NTIRE submission
-* Additional datasets used for testing
+Place the downloaded weights in:
 
-Download the weights and place them inside:
-
-```
+```bash
 Enhancement/pretrained_models/
 ```
 
 ---
 
-# Running Official Challenge Data
+## 8. Reproducibility (NTIRE Submission)
 
-After downloading the pretrained model:
-
-```
+```bash
 cd Enhancement
-python test.py --input_dir [path_to_official_input]
+
+python test.py \
+--weights pretrained_models/averaged_model.pth \
+--input_dir ./data/input \
+--result_dir ./results
 ```
 
-Enhanced images will be saved in the `results` directory.
+Steps:
+1. Download pretrained weights  
+2. Place them in `Enhancement/pretrained_models/`  
+3. Provide input images in `./data/input/`  
+4. Run the command above  
+
+The generated outputs will match our Codabench submission.
 
 ---
 
-# Method Overview
+## 9. Method Description
 
-Our approach uses **UHDM (Ultra High Definition Model)** for low-light enhancement.
+Our solution is based on **UHDM**, designed for high-quality low-light enhancement.
 
-Key components:
-
-* BasicSR training framework
-* UHDM architecture
-* checkpoint averaging
-* X8 self-ensemble inference
-* resolution preserving output
-
-The model is trained on the **NTIRE Low-Light Image Enhancement dataset**.
+### Key Components:
+- Hierarchical decomposition-based architecture  
+- BasicSR training pipeline  
+- Checkpoint averaging  
+- X8 self-ensemble during inference  
+- Resolution-preserving enhancement  
 
 ---
 
-# Acknowledgements
+## 10. Hardware Requirements
 
-This repository is built based on the following excellent works:
-
-* UHDM
-* MIRNet-v2
-* BasicSR framework
-
-We sincerely thank the authors for their contributions.
-
-We also acknowledge the computational resources provided by:
-
-Frontier Vision Lab
-Sun Yat-Sen University
+- GPU: NVIDIA GPU (recommended)  
+- CUDA: 11.1  
+- Framework: PyTorch  
 
 ---
 
-# NTIRE 2026 Submission
+## 11. Acknowledgements
 
-This repository provides the code and models required to reproduce our NTIRE 2026 submission.
+This work builds upon the following contributions:
 
-The results submitted to Codabench can be reproduced using the provided pretrained weights and inference scripts.
+- UHDM  
+- MIRNet-v2  
+- BasicSR  
+
+We thank the respective authors for their valuable work.
+
+We also acknowledge computational support from:
+
+Frontier Vision Lab, Sun Yat-Sen University
 
 ---
 
-# Contact
+## 12. NTIRE 2026 Submission
 
-KLE Technological University
+This repository contains all necessary components to reproduce our NTIRE 2026 submission, including code, pretrained models, and evaluation pipeline.
 
-For questions regarding this repository or the NTIRE 2026 submission, please contact the team members.
+---
 
-](https://github.com/CeviKle/NTIRE2026-KLETech-CEVI-LLIE/blob/main/README.md?plain=1)
+## 13. Contact
+
+KLE Technological University  
+
+For any queries regarding this repository or the NTIRE 2026 submission, please contact the team.
