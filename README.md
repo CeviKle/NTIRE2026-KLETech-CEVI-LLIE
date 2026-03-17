@@ -1,4 +1,4 @@
-[# NTIRE 2026 – Low-Light Image Enhancement Challenge
+[# NTIRE 2026 – Low-Light Image Enhancement Challenge]
 
 ### Team: KLETech-CEVI
 
